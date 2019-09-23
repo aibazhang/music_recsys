@@ -58,7 +58,7 @@ class PopSampling(RandomSampling):
         '''
         self.score_list = list()
         for pct in tqdm(playing_count_daily):
-            score = np.array(qcut(pct.rank(method='first'), self.score_lim, 
+            score = np.array(qcut((1 / pct).rank(method='first'), self.score_lim, 
                              labels=range(self.score_lim, 0, -1)))
             self.score_list.append(score / score.sum())
 
@@ -104,7 +104,7 @@ class TopDiscountPopSampling(PopSampling):
 
         self.score_list = list()
         for pct in tqdm(playing_count_daily):
-            score = np.array(qcut(pct.rank(method='first'), self.score_lim, 
+            score = np.array(qcut((1 / pct).rank(method='first'), self.score_lim, 
                              labels=range(self.score_lim, 0, -1)))
             score[score > self.topoff] = 2
             self.score_list.append(score / score.sum()) 
@@ -135,6 +135,6 @@ class PriorityPopSampling(PopSampling):
 
         self.score_list = list()
         for pct in tqdm(playing_count_daily):
-            score = np.array(pct.rank(method='dense'))
+            score = np.array((1 / pct).rank(method='dense'))
             rec_score_pow_alpha = np.power(1 / score, self.alpha)
             self.score_list.append(rec_score_pow_alpha / rec_score_pow_alpha.sum())
