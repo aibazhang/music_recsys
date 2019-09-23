@@ -112,7 +112,6 @@ class ConstructData:
             else:
                 nowplaying_filter = self.data_df[self.data_df.dayofyear <= (i+1)]
             playing_count_daily.append(nowplaying_filter.track_id.value_counts())
-
         
         if self.sampling_approach['name'] == 'random':
             for d, t in zip(tqdm(day_of_year_items), reviewed_items):

@@ -11,8 +11,10 @@ from pandas import DataFrame
 from sklearn.metrics import mean_squared_error, accuracy_score
 from sklearn.preprocessing import OneHotEncoder
 from construct_dataset import ConstructData, split_train_test, read_data
-from fastFM import als as factorization_machine
 from utils import calc_MPR_MRR
+
+import xlearn as xl
+from fastFM import als as factorization_machine
 
 
 def analysis(positive, negative, algo, use_features, 
@@ -56,7 +58,7 @@ def analysis(positive, negative, algo, use_features,
     return split_index, perc_ranking, pred
 
 
-def cross_validation_time_series(positive, negative, algo, use_features, 
+def cross_validation_time_series(positive, negative, algo, algo_name, use_features, 
                                  nfold, accumulate, balance_sample, negative_ratio):
     '''
     Fuction of cross validation based on time series
@@ -64,6 +66,7 @@ def cross_validation_time_series(positive, negative, algo, use_features,
         - positive (pandas.DataFrame) : positive samples 
         - negative (pandas.DataFrame) : negative samples
         - algo (fastFM.als) : algorithm for recommedation
+        - algo_name (str) : name of algorithm
         - use_features (list) : use feature
         - nfold (int) : flod size of cross validation
         - accumulate (bool) : accumulate or not when using CV
@@ -83,7 +86,6 @@ def cross_validation_time_series(positive, negative, algo, use_features,
     print(positive.columns)
 
     for i in range(nfold):
-        model = deepcopy(algo)
         
         if not accumulate:
             train_index = [int(i / (nfold + nfold - 1) * n_sample),
@@ -94,7 +96,6 @@ def cross_validation_time_series(positive, negative, algo, use_features,
         test_index = [int((i + nfold - 1) / (nfold + nfold - 1) * n_sample),
                     int((i + nfold) / (nfold + nfold - 1) * n_sample)]   
         print(train_index, test_index)
-
         train = positive.iloc[train_index[0]:train_index[1], ]
         testing = positive.iloc[test_index[0]:test_index[1], ]
 
@@ -108,8 +109,19 @@ def cross_validation_time_series(positive, negative, algo, use_features,
 
         start_time = datetime.now()
         
-        model.fit(train_x_en, train_y)
-        pred = model.predict(test_x_en)
+        if algo_name == 'FM':
+            model = deepcopy(algo)
+            model.fit(train_x_en, train_y)
+            pred = model.predict(test_x_en)
+        if algo_name == 'xlearn_FM':            
+            param = {'task':'reg', 'lr':0.2,'lambda':0.002, 'metric':'mae'}
+            xdm_train = xl.DMatrix(train_x_en, train_y)
+            xdm_test = xl.DMatrix(test_x_en, test_y)
+            
+            model.setTrain(xdm_train)
+            model.fit(param, './model_dm.out')
+            fm_model.setTest(xdm_test)
+            res = fm_model.predict("./model_dm.out")
 
         evaluate_result['TIME'].append((datetime.now() - start_time).total_seconds())
         MPR, MRR, perc_ranking = calc_MPR_MRR(model, test_x, encoder, n_track)
@@ -125,7 +137,8 @@ def cross_validation_time_series(positive, negative, algo, use_features,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # arguments about selecting model
-    parser.add_argument("-algo", help="name of using model", choices=["FM"], type=str, default="FM")
+    parser.add_argument("-algo", help="name and hyper-prameter use model", type=json.loads, 
+                        default={"name":"FM"})
     parser.add_argument("-sampling_approach", help="name of sampling approach", 
                         type=json.loads, default={"name":"random"})
     parser.add_argument("-features", help="list of using feature(s)", type=list, default=['user_id', 'track_id'])
@@ -160,9 +173,12 @@ if __name__ == "__main__":
         pass
     elif sam_apr_name == 'top_dis_pop':
         pass
-
-    if args.algo == "FM":
+    
+    assert args.algo['name'] in ["FM", "xlearn_FM"]
+    if args.algo['name'] == "FM":
         algo = factorization_machine.FMRegression(rank=8, n_iter=100, l2_reg_w=0.1, l2_reg_V=0.1)
+    if args.algo['name'] == "xlearn_FM":
+        algo = xl.create_fm()
 
     print('------loading data------')
     cd = ConstructData(dataset=args.dataset, features=args.features, test=args.test_flag,
@@ -172,10 +188,11 @@ if __name__ == "__main__":
     
     
     if not args.analysis:
-        result = cross_validation_time_series(positive=cd.data_df, negative=cd.negative, algo=algo, 
-                                            use_features=args.features, nfold=args.nfold, 
-                                            accumulate=args.accumulate, balance_sample=args.balance_sample,
-                                            negative_ratio=args.negative_ratio)
+        result = cross_validation_time_series(positive=cd.data_df, negative=cd.negative, 
+                                              algo=algo, algo_name=args.algo['name'],
+                                              use_features=args.features, nfold=args.nfold, 
+                                              accumulate=args.accumulate, balance_sample=args.balance_sample,
+                                              negative_ratio=args.negative_ratio)
         result = DataFrame(result)
         print(result)
         nowtime = datetime.now().strftime("%Y%m%d%H%M%S")
