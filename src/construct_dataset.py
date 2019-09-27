@@ -26,7 +26,7 @@ def read_data(dataset='nowplaying-rs', test=100, usecols=None):
     '''
 
     if dataset == 'nowplaying-rs':
-        data_dir = "nowplaying-RS-Music-Reco-FM/nowplaying_cleaned.csv"
+        data_dir = "nowplaying-RS-Music-Reco-FM/nowplaying_cleaned_ms.csv"
     elif dataset == 'mmtd':
         data_dir = "mmtd/mmtd_nowplaying.csv"
     elif dataset == 'LFM-1b': 
