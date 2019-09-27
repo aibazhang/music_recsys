@@ -164,7 +164,8 @@ if __name__ == "__main__":
     if args.algo == "FM":
         algo = factorization_machine.FMRegression(rank=8, n_iter=100, l2_reg_w=0.1, l2_reg_V=0.1)
 
-    args.features.remove('\r')
+    if len(args.features) > 2:
+        args.features.remove('\r')
     features = args.features
 
     print('------loading data------')
