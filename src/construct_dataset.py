@@ -55,12 +55,9 @@ class ConstructData:
         self.sampling_approach = sampling_approach
 
         essential_features = ['user_id', 'track_id', 'id', 'dayofyear']
-        if features is None:
-            self.features = essential_features
-        else:
-            self.features = list(set(features) | set(essential_features))
-
-        self.data_df = read_data(dataset=dataset, usecols=self.features.copy(), test=test)
+        self.features = list(set(features).union(set(essential_features)))
+          
+        self.data_df = read_data(dataset=dataset, usecols=self.features, test=test)
         self._label_encoder()
 
         approach_name = sampling_approach['name']

@@ -128,7 +128,7 @@ if __name__ == "__main__":
     parser.add_argument("-algo", help="name of using model", choices=["FM"], type=str, default="FM")
     parser.add_argument("-sampling_approach", help="name of sampling approach", 
                         type=json.loads, default={"name":"random"})
-    parser.add_argument("-features", help="list of using feature(s)", type=list, default=['user_id', 'track_id'])
+    parser.add_argument("-features", help="list of using feature(s)", type=str, nargs='+', default=['user_id', 'track_id'])
 
     # arguments about sampling
     parser.add_argument("-negative_ratio", help="ratio of negative samples", 
@@ -164,24 +164,27 @@ if __name__ == "__main__":
     if args.algo == "FM":
         algo = factorization_machine.FMRegression(rank=8, n_iter=100, l2_reg_w=0.1, l2_reg_V=0.1)
 
+    args.features.remove('\r')
+    features = args.features
+
     print('------loading data------')
-    cd = ConstructData(dataset=args.dataset, features=args.features, test=args.test_flag,
+    cd = ConstructData(dataset=args.dataset, features=features, test=args.test_flag,
                        sampling_approach=args.sampling_approach, negative_ratio=args.negative_ratio)
     print('------negative sampling------')
     cd.make_negative(time_window=args.time_windows)
     
-    
+
     if not args.analysis:
         result = cross_validation_time_series(positive=cd.data_df, negative=cd.negative, algo=algo, 
-                                            use_features=args.features, nfold=args.nfold, 
+                                            use_features=features, nfold=args.nfold, 
                                             accumulate=args.accumulate, balance_sample=args.balance_sample,
                                             negative_ratio=args.negative_ratio)
         result = DataFrame(result)
         print(result)
         nowtime = datetime.now().strftime("%Y%m%d%H%M%S")
         output_filename = 'ds_{}_m_{}_sa_{}_f_{}_k_{}_t_{}.csv'.format(args.dataset, args.algo, 
-                                                                       str(args.sampling_approach).replace(':', '_'),
-                                                                       args.features, args.negative_ratio, nowtime)
+                                                                    str(args.sampling_approach).replace(':', '_'),
+                                                                    args.features, args.negative_ratio, nowtime)
         
     
     else:
@@ -196,7 +199,8 @@ if __name__ == "__main__":
         output_filename = 'analysis_ds_{}_m_{}_sa_{}_f_{}_k_{}_t_{}.csv'.format(args.dataset, args.algo, 
                                                                                 str(args.sampling_approach).replace(':', '_'),
                                                                                 args.features, args.negative_ratio, nowtime)
-    result.to_csv(args.out_dir + output_filename)
+    if args.test_flag == 0:
+        result.to_csv(args.out_dir + output_filename)
     
     
     print('------Finished------')
