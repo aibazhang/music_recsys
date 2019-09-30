@@ -26,7 +26,7 @@ def read_data(dataset='nowplaying-rs', test=100, usecols=None):
     '''
 
     if dataset == 'nowplaying-rs':
-        data_dir = "nowplaying-RS-Music-Reco-FM/nowplaying_cleaned.csv"
+        data_dir = "nowplaying-RS-Music-Reco-FM/nowplaying_cleaned_ms.csv"
     elif dataset == 'mmtd':
         data_dir = "mmtd/mmtd_nowplaying.csv"
     elif dataset == 'LFM-1b': 
@@ -55,12 +55,9 @@ class ConstructData:
         self.sampling_approach = sampling_approach
 
         essential_features = ['user_id', 'track_id', 'id', 'dayofyear']
-        if features is None:
-            self.features = essential_features
-        else:
-            self.features = list(set(features) | set(essential_features))
-
-        self.data_df = read_data(dataset=dataset, usecols=self.features.copy(), test=test)
+        self.features = list(set(features).union(set(essential_features)))
+          
+        self.data_df = read_data(dataset=dataset, usecols=self.features, test=test)
         self._label_encoder()
 
         approach_name = sampling_approach['name']
