@@ -99,29 +99,30 @@ def cross_validation_time_series(positive, negative, algo, algo_name, use_featur
         train = positive.iloc[train_index[0]:train_index[1], ]
         testing = positive.iloc[test_index[0]:test_index[1], ]
 
-        train_x, train_y, test_x, test_y = split_train_test(train_positive=train, test_positive=testing, 
+        train_x, train_y, test_x, test_y = split_train_test(train_positive=train, test_positive=testing, algo_name=algo_name,
                                                             negative=negative, negative_ratio=negative_ratio, 
                                                             balance_sample=balance_sample, use_features=use_features)
-        # one hot encoder
-        encoder = OneHotEncoder(handle_unknown='ignore').fit(train_x)
-        train_x_en = encoder.transform(train_x)
-        test_x_en = encoder.transform(test_x)
+        
 
         start_time = datetime.now()
         
         if algo_name == 'FM':
+        # one hot encoder
+            encoder = OneHotEncoder(handle_unknown='ignore').fit(train_x)
+            train_x_en = encoder.transform(train_x)
+            test_x_en = encoder.transform(test_x)
             model = deepcopy(algo)
             model.fit(train_x_en, train_y)
             pred = model.predict(test_x_en)
+
         if algo_name == 'xlearn_FM':            
             param = {'task':'reg', 'lr':0.2,'lambda':0.002, 'metric':'mae'}
-            xdm_train = xl.DMatrix(train_x_en, train_y)
-            xdm_test = xl.DMatrix(test_x_en, test_y)
+            model = algo
             
-            model.setTrain(xdm_train)
+            model.setTrain('./ffm_train.csv')
             model.fit(param, './model_dm.out')
-            fm_model.setTest(xdm_test)
-            res = fm_model.predict("./model_dm.out")
+            model.setTest('./ffm_test.csv')
+            res = model.predict("./model_dm.out")
 
         evaluate_result['TIME'].append((datetime.now() - start_time).total_seconds())
         MPR, MRR, perc_ranking = calc_MPR_MRR(model, test_x, encoder, n_track)

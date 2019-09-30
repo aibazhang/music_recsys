@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from sklearn.preprocessing import LabelEncoder
+from utils import FFMFormatPandas
 
 import sampling
 from features import non_categorical_features, music_content_features
@@ -129,7 +130,7 @@ class ConstructData:
         self.data_df.set_index('id', inplace=True)
 
 
-def split_train_test(train_positive, test_positive, negative, 
+def split_train_test(train_positive, test_positive, negative, algo_name,
                      negative_ratio, balance_sample, use_features):
     '''
     split positive & negative samples to train and testing set
@@ -164,5 +165,24 @@ def split_train_test(train_positive, test_positive, negative,
     test_x = test_positive
     test_y = np.array([1] * len(test_positive))
 
-    return train_x, train_y, test_x, test_y
+    if algo_name in ['FM']:
+        return train_x, train_y, test_x, test_y
+    if algo_name in ['xlearn_FM', 'xlearn_FFM']:
+        for f in use_features:
+            train_x[f] = train_x[f].map(str)
+            test_x[f] = test_x[f].map(str)
+        train_x['rating'] = train_y
+        test_x['rating'] = test_y
+        
+        train_test = pd.concat([train_x, test_x], ignore_index=True)
+        ffm_format = FFMFormatPandas()
+        ffm_train_test = ffm_format.fit_transform(train_test, y='rating')
+        
+        ffm_train = ffm_train_test.iloc[:train_x.shape[0]]
+        ffm_test = ffm_train_test.iloc[train_x.shape[0]:]
+
+        ffm_train.to_csv(path='ffm_train.csv', index=False)
+        ffm_test.to_csv(path='ffm_test.csv', index=False)
+
+        return None, None, None, None
             
