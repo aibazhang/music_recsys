@@ -3,13 +3,14 @@
 - Evaluation metric
 '''
 
-
+import os
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
 from multiprocessing import Pool, cpu_count
 from functools import partial
+from sklearn.preprocessing import OneHotEncoder
 
 class GetRanking:
     def __init__(self, clf, encoder, test_x, track_num):
@@ -25,8 +26,13 @@ class GetRanking:
         le = pd.DataFrame([self.test_x_list[ind]] * self.track_num, columns=self.use_features)
         le['track_id'] = range(self.track_num)
 
-        proba = self.clf.predict(self.encoder.transform(le))
-
+        if isinstance(self.encoder, OneHotEncoder):
+            proba = self.clf.predict(self.encoder.transform(le))
+        if isinstance(self.encoder, FFMFormatPandas):
+            # print('le.csv'.format(os.getppid()))
+            le = self.encoder.transform(le).to_csv('le{}.csv'.format(os.getppid()), index=False)
+            proba = self.clf.predict('le{}.csv'.format(os.getppid()))
+        
         recommend_list = list(np.argsort(proba)[::-1])
         return ind, recommend_list.index(self.selected_item[ind])
 

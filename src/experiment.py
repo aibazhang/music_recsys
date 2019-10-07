@@ -4,14 +4,15 @@ Script for experiment
 
 import argparse
 import json
+
 from copy import deepcopy
 from datetime import datetime
-from pandas import DataFrame
+from pandas import DataFrame, concat
 
 from sklearn.metrics import mean_squared_error, accuracy_score
 from sklearn.preprocessing import OneHotEncoder
 from construct_dataset import ConstructData, split_train_test, read_data
-from utils import calc_MPR_MRR
+from utils import calc_MPR_MRR, FFMFormatPandas
 
 import xlearn as xl
 from fastFM import als as factorization_machine
@@ -105,30 +106,51 @@ def cross_validation_time_series(positive, negative, algo, algo_name, use_featur
         
 
         start_time = datetime.now()
-        
+        encoder = None  
         if algo_name == 'FM':
-        # one hot encoder
+            # one hot encoder   
             encoder = OneHotEncoder(handle_unknown='ignore').fit(train_x)
             train_x_en = encoder.transform(train_x)
             test_x_en = encoder.transform(test_x)
+
+            # training model
             model = deepcopy(algo)
             model.fit(train_x_en, train_y)
             pred = model.predict(test_x_en)
 
-        if algo_name == 'xlearn_FM':            
-            param = {'task':'reg', 'lr':0.2,'lambda':0.002, 'metric':'mae'}
-            model = algo
+        if algo_name == 'xlearn_FM':
+            '''
+            TODO:
+                https://xlearn-doc.readthedocs.io/en/latest/python_api/index.html#online-learning
+            '''            
+            # Pandas Dataframe to FFMFormat
+            for f in use_features:
+                train_x[f] = train_x[f].map(str)
+                test_x[f] = test_x[f].map(str)
+            train_x['rating'] = train_y
+            test_x['rating'] = test_y
+
+            train_test = concat([train_x, test_x], ignore_index=True)
+            encoder = FFMFormatPandas()
+            encoder.fit(train_test, y='rating')
+            ffm_train_test = encoder.transform(train_test)
             
-            model.setTrain('./ffm_train.csv')
-            model.fit(param, './model_dm.out')
-            model.setTest('./ffm_test.csv')
-            res = model.predict("./model_dm.out")
+            ffm_train = ffm_train_test.iloc[:train_x.shape[0]]
+            ffm_test = ffm_train_test.iloc[train_x.shape[0]:]
+
+            ffm_train.to_csv(path='ffm_train.csv', index=False)
+            ffm_test.to_csv(path='ffm_test.csv', index=False)
+            
+            # training model
+            model = algo
+            model.fit('./ffm_train.csv')
+            pred = model.predict('./ffm_test.csv')
 
         evaluate_result['TIME'].append((datetime.now() - start_time).total_seconds())
+        # calculating MPR and MRR
         MPR, MRR, perc_ranking = calc_MPR_MRR(model, test_x, encoder, n_track)
-
         evaluate_result['MPR'].append(MPR)
-        evaluate_result['MRR'].append(MRR)
+        evaluate_result['MRR'].append(MRR)       
         evaluate_result['Accuracy'].append(accuracy_score(test_y, pred>0.5))
         evaluate_result['RMSE'].append(mean_squared_error(test_y, pred))
 
@@ -179,7 +201,10 @@ if __name__ == "__main__":
     if args.algo['name'] == "FM":
         algo = factorization_machine.FMRegression(rank=8, n_iter=100, l2_reg_w=0.1, l2_reg_V=0.1)
     if args.algo['name'] == "xlearn_FM":
-        algo = xl.create_fm()
+        algo = xl.FMModel(task='reg', init=0.1, 
+                          epoch=10, k=4, lr=0.2, 
+                          reg_lambda=0.01, opt='sgd', 
+                          metric='mae')
 
     if len(args.features) > 2:
         args.features.remove('\r')
@@ -216,7 +241,7 @@ if __name__ == "__main__":
         result['pre_rating'] = pred
         result['percentage_ranking'] = PR
         nowtime = datetime.now().strftime("%Y%m%d%H%M%S")
-        output_filename = 'analysis_ds_{}_m_{}_sa_{}_f_{}_k_{}_t_{}.csv'.format(args.dataset, args.algo, 
+        output_filename = 'analysis_ds_{}_m_{}_sa_{}_f_{}_k_{}_t_{}.csv'.format(args.dataset, str(args.algo).replace(':', '_'), 
                                                                                 str(args.sampling_approach).replace(':', '_'),
                                                                                 args.features, args.negative_ratio, nowtime)
     if args.test_flag == 0:
