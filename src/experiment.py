@@ -185,11 +185,11 @@ if __name__ == "__main__":
                         choices=['nowplaying-rs', 'mmtd', 'LFM-1b'], default="nowplaying-rs")
     parser.add_argument("-out_flag", help="output or not", type=bool, default=True)
     parser.add_argument("-out_dir", help="the dir of output", type=str, default="../experiemnt_result/")
-         
+
     args = parser.parse_args()
 
     sam_apr_name = args.sampling_approach['name']
-    assert sam_apr_name in ["random", "pop", "top_dis_pop", "pri_pop"]
+    assert sam_apr_name in ["random", "pop", "top_dis_pop", "pri_pop", "lang"]
     if sam_apr_name == "pri_pop":
         assert {'alpha'}.issubset(set(args.sampling_approach.keys()))
     elif sam_apr_name == "pop":
