@@ -69,7 +69,7 @@ class ConstructData:
             self.sampling_model = sampling.TopDiscountPopSampling(k=negative_ratio, 
                                                                   score_lim=5, topoff=1)
         if approach_name == 'pri_pop':
-            self.sampling_model = sampling.PriorityPopSampling(k=negative_ratio, score_lim=5,
+            self.sampling_model = sampling.PriorityPopSampling(k=negative_ratio,
                                                                alpha=sampling_approach['alpha'])
 
         # non_categorical_feature
@@ -122,8 +122,7 @@ class ConstructData:
             for d, t in zip(tqdm(day_of_year_items), reviewed_items):
                 if d == 0:
                     continue
-                neg_track.extend(self.sampling_model.generate_record(item_id=t, 
-                                 sample_space=playing_count_daily[d-1], score=self.sampling_model.score_list[d-1]))
+                neg_track.extend(self.sampling_model.generate_record(item_id=t, score=self.sampling_model.score_list[d-1]))
 
         self.negative.loc[:, 'track_id'] = neg_track
         self.negative.set_index('id', inplace=True)
