@@ -100,7 +100,7 @@ def cross_validation_time_series(positive, negative, algo, algo_name, use_featur
         train = positive.iloc[train_index[0]:train_index[1], ]
         testing = positive.iloc[test_index[0]:test_index[1], ]
 
-        train_x, train_y, test_x, test_y = split_train_test(train_positive=train, test_positive=testing, algo_name=algo_name,
+        train_x, train_y, test_x, test_y = split_train_test(train_positive=train, test_positive=testing,
                                                             negative=negative, negative_ratio=negative_ratio, 
                                                             balance_sample=balance_sample, use_features=use_features)
         
