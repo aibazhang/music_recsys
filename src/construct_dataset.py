@@ -99,16 +99,7 @@ class ConstructData:
         reviewed_items = self.data_df.track_id
         day_of_year_items = self.data_df.dayofyear
 
-        playing_count_daily = list()
-        for i in tqdm(range(self.data_df.tail(1).dayofyear.tolist()[0])):
-            if time_window is not None:
-                if i+1 < time_window:
-                    nowplaying_filter = self.data_df[self.data_df.dayofyear <= (i+1)]
-                else:
-                    nowplaying_filter = self.data_df[(self.data_df.dayofyear <= (i+1)) & (self.data_df.dayofyear > i+1-time_window)]
-            else:
-                nowplaying_filter = self.data_df[self.data_df.dayofyear <= (i+1)]
-            playing_count_daily.append(nowplaying_filter.track_id.value_counts())
+        playing_count_daily = calc_popularity(self.data_df, time_window)
 
         
         if self.sampling_approach['name'] == 'random':
@@ -130,7 +121,18 @@ class ConstructData:
 
 
 def calc_popularity(data_df, time_window):
-    pass
+    popularity_daily = list()
+    dayofyear_range = range(data_df.tail(1).dayofyear.tolist()[0])
+    for i in tqdm(dayofyear_range):
+        if time_window is not None:
+            if i+1 < time_window:
+                one_day_data_df = data_df[data_df.dayofyear <= (i+1)]
+            else:
+                one_day_data_df = data_df[(data_df.dayofyear <= (i+1)) & (data_df.dayofyear > i+1-time_window)]
+        else:
+            one_day_data_df = data_df[data_df.dayofyear <= (i+1)]
+        popularity_daily.append(one_day_data_df.track_id.value_counts())
+    return popularity_daily
 
 
 def split_train_test(train_positive, test_positive, negative, 
