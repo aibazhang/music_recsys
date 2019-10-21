@@ -189,7 +189,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     sam_apr_name = args.sampling_approach['name']
-    assert sam_apr_name in ["random", "pop", "top_dis_pop", "pri_pop", "lang"]
+    assert sam_apr_name in ["random", "pop", "top_dis_pop", "pri_pop", "pri_pop_lang"]
     if sam_apr_name == "pri_pop":
         assert {'alpha'}.issubset(set(args.sampling_approach.keys()))
     elif sam_apr_name == "pop":

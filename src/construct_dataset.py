@@ -56,7 +56,7 @@ class ConstructData:
         self.dataset = dataset
 
         approach_name = sampling_approach['name']
-        if approach_name == 'lang':
+        if approach_name == 'pri_pop_lang':
             if dataset == 'LFM-1b':
                 essential_features = ['user_id', 'track_id', 'id', 'dayofyear', 'country']
             else:
@@ -69,7 +69,7 @@ class ConstructData:
         self.data_df = read_data(dataset=self.dataset, usecols=self.features, test=test)
         self._label_encoder()
         
-        if approach_name == 'random' or approach_name == 'lang':
+        if approach_name == 'random':
             self.sampling_model = sampling.RandomSampling(k=negative_ratio)
         if approach_name == 'pop':
             self.sampling_model = sampling.PopSampling(k=negative_ratio, score_lim=10)
@@ -79,7 +79,10 @@ class ConstructData:
         if approach_name == 'pri_pop':
             self.sampling_model = sampling.PriorityPopSampling(k=negative_ratio,
                                                                alpha=sampling_approach['alpha'])
-
+        if approach_name == 'pri_pop_lang':
+            self.sampling_model = sampling.LangPriorityPopSampling(k=negative_ratio,
+                                                                   alpha=sampling_approach['alpha'])
+        
         # non_categorical_feature
         self.cont_fea = list(set(self.features) & set(music_content_features))
 
@@ -105,13 +108,27 @@ class ConstructData:
         self.negative = pd.DataFrame(list(self.data_df[self.data_df.dayofyear>0].values) * self.k, columns=self.data_df.columns)
         reviewed_items = self.data_df.track_id
         day_of_year_items = self.data_df.dayofyear
-        if self.sampling_approach['name'] == 'lang':
+
+        if self.sampling_approach['name'] != 'pri_pop_lang':
+            playing_count_daily = calc_popularity(self.data_df, time_window)
+        else:
             if self.dataset == 'LFM-1b':
                 user_langs = self.data_df.country
             else:
                 user_langs = self.data_df.lang
-
-        playing_count_daily = calc_popularity(self.data_df, time_window)
+            
+            top_langs_index = self.data_df.lang.value_counts()[:13].index
+            
+            playing_count_daily_dict = dict()
+            
+            print('lang: all')
+            playing_count_daily_dict['all'] = calc_popularity(self.data_df, time_window)
+            for tl in top_langs_index:
+                print('lang: ', tl)
+                if self.dataset == 'LFM-1b':
+                    playing_count_daily_dict[tl] = calc_popularity(self.data_df[self.data_df.country != tl], time_window)
+                else:
+                    playing_count_daily_dict[tl] = calc_popularity(self.data_df[self.data_df.lang != tl], time_window)
 
         # Negative sampling
         neg_track = list()
@@ -119,18 +136,26 @@ class ConstructData:
             for d, t in zip(tqdm(day_of_year_items), reviewed_items):
                 if d == 0:
                     continue
-                
-                if self.sampling_approach['name'] == 'random':
-                    neg_track.extend(self.sampling_model.generate_record(item_id=t, sample_space=playing_count_daily[d-1]))
-                else:
-                    neg_track.extend(self.sampling_model.generate_record(item_id=t, 
-                                    sample_space=playing_count_daily[d-1], score=self.sampling_model.score_list[d-1]))
-        else:
+                neg_track.extend(self.sampling_model.generate_record(item_id=t, sample_space=playing_count_daily[d-1]))
+                    
+    
+        if self.sampling_approach['name'] in ["pop", "top_dis_pop", "pri_pop"]:
+            self.sampling_model.make_score_list(playing_count_daily)
+            for d, t in zip(tqdm(day_of_year_items), reviewed_items):
+                if d == 0:
+                    continue
+                neg_track.extend(self.sampling_model.generate_record(item_id=t, score=self.sampling_model.score_list[d-1]))
+
+
+        if self.sampling_approach['name'] == 'pri_pop_lang':
+            self.sampling_model.make_score_list(playing_count_daily_dict)
             for d, t, l in zip(tqdm(day_of_year_items), reviewed_items, user_langs):
                 if d == 0:
                     continue
-                neg_track.extend(self.sampling_model.generate_record(item_id=t, score=self.sampling_model.score_list[d-1]))                 
-
+                if l not in top_langs_index:
+                    neg_track.extend(self.sampling_model.generate_record(item_id=t, score=self.sampling_model.score_dict['all'][d-1]))                 
+                else:
+                    neg_track.extend(self.sampling_model.generate_record(item_id=t, score=self.sampling_model.score_dict[l][d-1]))                 
 
         self.negative.loc[:, 'track_id'] = neg_track
         self.negative.set_index('id', inplace=True)
