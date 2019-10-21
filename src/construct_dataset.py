@@ -129,6 +129,10 @@ class ConstructData:
         self.data_df.set_index('id', inplace=True)
 
 
+def calc_popularity(data_df, time_window):
+    pass
+
+
 def split_train_test(train_positive, test_positive, negative, 
                      negative_ratio, balance_sample, use_features):
     '''
