@@ -92,7 +92,6 @@ class ConstructData:
             - time_window time windows when sampling
         '''
         assert self.k >= 1
-        neg_track = list()
 
         # dayofyear>0: except the first day due to lacking play count list of the first day
         self.negative = pd.DataFrame(list(self.data_df[self.data_df.dayofyear>0].values) * self.k, columns=self.data_df.columns)
@@ -101,7 +100,8 @@ class ConstructData:
 
         playing_count_daily = calc_popularity(self.data_df, time_window)
 
-        
+        # Negative sampling
+        neg_track = list()
         if self.sampling_approach['name'] == 'random':
             for d, t in zip(tqdm(day_of_year_items), reviewed_items):
                 if d == 0:
@@ -121,6 +121,16 @@ class ConstructData:
 
 
 def calc_popularity(data_df, time_window):
+    '''
+    Function of calculating popularity of each day
+
+    Args:
+        - data_df (pd.Dataframe) : input dateset
+        - time_window time windows when sampling
+
+    Return:
+        - popularity_daily (list) : popularity of each day
+    '''
     popularity_daily = list()
     dayofyear_range = range(data_df.tail(1).dayofyear.tolist()[0])
     for i in tqdm(dayofyear_range):
