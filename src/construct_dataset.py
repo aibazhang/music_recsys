@@ -77,7 +77,7 @@ class ConstructData:
             self.sampling_model = sampling.TopDiscountPopSampling(k=negative_ratio, 
                                                                   score_lim=5, topoff=1)
         if approach_name == 'pri_pop':
-            self.sampling_model = sampling.PriorityPopSampling(k=negative_ratio, score_lim=5,
+            self.sampling_model = sampling.PriorityPopSampling(k=negative_ratio,
                                                                alpha=sampling_approach['alpha'])
 
         # non_categorical_feature
@@ -100,7 +100,6 @@ class ConstructData:
             - time_window time windows when sampling
         '''
         assert self.k >= 1
-        neg_track = list()
 
         # dayofyear>0: except the first day due to lacking play count list of the first day
         self.negative = pd.DataFrame(list(self.data_df[self.data_df.dayofyear>0].values) * self.k, columns=self.data_df.columns)
@@ -112,30 +111,11 @@ class ConstructData:
             else:
                 user_langs = self.data_df.lang
 
-        playing_count_daily = list()
-        for i in tqdm(range(self.data_df.tail(1).dayofyear.tolist()[0])):
-            if time_window is not None:
-                if i+1 < time_window:
-                    nowplaying_filter = self.data_df[self.data_df.dayofyear <= (i+1)]
-                else:
-                    nowplaying_filter = self.data_df[
-                            (self.data_df.dayofyear <= (i+1)) & (self.data_df.dayofyear > i+1-time_window)
-                        ]
-            else:
-                nowplaying_filter = self.data_df[self.data_df.dayofyear <= (i+1)]
+        playing_count_daily = calc_popularity(self.data_df, time_window)
 
-            if self.sampling_approach['name'] == 'lang':
-                if self.dataset == 'LFM-1b':
-                    playing_count_daily.append(nowplaying_filter.groupby(['country','track_id'])['track_id'].count())
-                else:
-                    playing_count_daily.append(nowplaying_filter.groupby(['lang','track_id'])['track_id'].count())
-            else:
-                playing_count_daily.append(nowplaying_filter.track_id.value_counts())
-        
-        if self.sampling_approach['name'] not in ['random', 'lang']:
-            self.sampling_model.make_score_list(playing_count_daily)
-        
-        if self.sampling_approach['name'] != 'lang':
+        # Negative sampling
+        neg_track = list()
+        if self.sampling_approach['name'] == 'random':
             for d, t in zip(tqdm(day_of_year_items), reviewed_items):
                 if d == 0:
                     continue
@@ -149,17 +129,40 @@ class ConstructData:
             for d, t, l in zip(tqdm(day_of_year_items), reviewed_items, user_langs):
                 if d == 0:
                     continue
-                if l in set(playing_count_daily[d-1].index.droplevel(level=1).tolist()):
-                    neg_track.extend(self.sampling_model.generate_record(item_id=t, sample_space=playing_count_daily[d-1][l]))
-                else:
-                    neg_track.extend(self.sampling_model.generate_record(item_id=t, sample_space=playing_count_daily[d-1]))                    
+                neg_track.extend(self.sampling_model.generate_record(item_id=t, score=self.sampling_model.score_list[d-1]))                 
+
 
         self.negative.loc[:, 'track_id'] = neg_track
         self.negative.set_index('id', inplace=True)
         self.data_df.set_index('id', inplace=True)
 
 
-def split_train_test(train_positive, test_positive, negative, algo_name,
+def calc_popularity(data_df, time_window):
+    '''
+    Function of calculating popularity of each day
+
+    Args:
+        - data_df (pd.Dataframe) : input dateset
+        - time_window time windows when sampling
+
+    Return:
+        - popularity_daily (list) : popularity of each day
+    '''
+    popularity_daily = list()
+    dayofyear_range = range(data_df.tail(1).dayofyear.tolist()[0])
+    for i in tqdm(dayofyear_range):
+        if time_window is not None:
+            if i+1 < time_window:
+                one_day_data_df = data_df[data_df.dayofyear <= (i+1)]
+            else:
+                one_day_data_df = data_df[(data_df.dayofyear <= (i+1)) & (data_df.dayofyear > i+1-time_window)]
+        else:
+            one_day_data_df = data_df[data_df.dayofyear <= (i+1)]
+        popularity_daily.append(one_day_data_df.track_id.value_counts())
+    return popularity_daily
+
+
+def split_train_test(train_positive, test_positive, negative, 
                      negative_ratio, balance_sample, use_features):
     '''
     split positive & negative samples to train and testing set

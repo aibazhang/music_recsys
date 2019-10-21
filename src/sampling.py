@@ -58,11 +58,11 @@ class PopSampling(RandomSampling):
         '''
         self.score_list = list()
         for pct in tqdm(playing_count_daily):
-            score = np.array(qcut((1 / pct).rank(method='first'), self.score_lim, 
-                             labels=range(self.score_lim, 0, -1)))
+            score = qcut((1 / pct).rank(method='first'), self.score_lim, 
+                         labels=range(self.score_lim, 0, -1))
             self.score_list.append(score / score.sum())
 
-    def generate_record(self, item_id=None, sample_space=None, score=None):
+    def generate_record(self, item_id=None, score=None):
         '''
         Function of generating negative samples one by one 
 
@@ -73,9 +73,9 @@ class PopSampling(RandomSampling):
         Return:
             - record (int) : track id of selected negative sample(s)
         '''
-        record = np.random.choice(sample_space.index, self.k, p=score)
+        record = np.random.choice(score.index, self.k, p=score)
         while item_id in record:
-            record = np.random.choice(sample_space.index, self.k, p=score)
+            record = np.random.choice(score.index, self.k, p=score)
         return record
 
 
@@ -104,14 +104,14 @@ class TopDiscountPopSampling(PopSampling):
 
         self.score_list = list()
         for pct in tqdm(playing_count_daily):
-            score = np.array(qcut((1 / pct).rank(method='first'), self.score_lim, 
-                             labels=range(self.score_lim, 0, -1)))
+            score = qcut((1 / pct).rank(method='first'), self.score_lim, 
+                          labels=range(self.score_lim, 0, -1))
             score[score > self.topoff] = 2
             self.score_list.append(score / score.sum()) 
 
 
 class PriorityPopSampling(PopSampling):
-    def __init__(self, k, score_lim, alpha=0.5):
+    def __init__(self, k, alpha=0.5):
         '''
         Select negative sample based the popularity of track
         The probability of a sample is selected $P(i)=p_i^{\alpha}/\sum_k p_k^{\alpha}$ 
@@ -122,7 +122,7 @@ class PriorityPopSampling(PopSampling):
             - score_lim (int) : number of segment
             - alpha (float) : control the difference probability of postive samples and negative ones
         ''' 
-        PopSampling.__init__(self, k=k, score_lim=score_lim)
+        PopSampling.__init__(self, k=k)
         self.alpha = alpha
     
     def make_score_list(self, playing_count_daily):
@@ -135,6 +135,6 @@ class PriorityPopSampling(PopSampling):
 
         self.score_list = list()
         for pct in tqdm(playing_count_daily):
-            score = np.array((1 / pct).rank(method='dense'))
+            score = (1 / pct).rank(method='dense')
             rec_score_pow_alpha = np.power(1 / score, self.alpha)
             self.score_list.append(rec_score_pow_alpha / rec_score_pow_alpha.sum())
