@@ -138,3 +138,35 @@ class PriorityPopSampling(PopSampling):
             score = (1 / pct).rank(method='dense')
             rec_score_pow_alpha = np.power(1 / score, self.alpha)
             self.score_list.append(rec_score_pow_alpha / rec_score_pow_alpha.sum())
+
+
+class LangPriorityPopSampling(PriorityPopSampling):
+    def __init__(self, k, alpha=0.5):
+        '''
+        Select negative sample based the popularity of track
+        The probability of a sample is selected $P(i)=p_i^{\alpha}/\sum_k p_k^{\alpha}$ 
+        Priority: $p_i=1/\mathrm{rank}(i)$
+
+        Args:
+            - k (int) : negative sample ratio
+            - score_lim (int) : number of segment
+            - alpha (float) : control the difference probability of postive samples and negative ones
+        ''' 
+        super().__init__(k, alpha=alpha)
+
+    def make_score_list(self, playing_count_daily_dict):
+        '''
+        Function of calculating score list for sampling
+
+        Args:
+            - playing_count_daily_dict (dict) : stastic of play count in each day group by language
+        '''
+        self.score_dict = dict()
+        for lang in playing_count_daily_dict.keys():
+            print('lang: ', lang)
+            self.score_dict[lang] = list()
+            for pct in tqdm(playing_count_daily_dict[lang]):
+                score = (1 / pct).rank(method='dense')
+                rec_score_pow_alpha = np.power(1 / score, self.alpha)
+                self.score_dict[lang].append(rec_score_pow_alpha / rec_score_pow_alpha.sum())
+
