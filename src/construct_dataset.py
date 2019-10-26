@@ -75,7 +75,7 @@ class ConstructData:
             self.sampling_model = sampling.PopSampling(k=negative_ratio, score_lim=10)
         if approach_name == 'top_dis_pop':
             self.sampling_model = sampling.TopDiscountPopSampling(k=negative_ratio, 
-                                                                  score_lim=5, topoff=1)
+                                                                  topoff=sampling_approach['topoff'])
         if approach_name == 'pri_pop':
             self.sampling_model = sampling.PriorityPopSampling(k=negative_ratio,
                                                                alpha=sampling_approach['alpha'])

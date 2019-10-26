@@ -206,7 +206,7 @@ if __name__ == "__main__":
                           reg_lambda=0.01, opt='sgd', 
                           metric='mae')
 
-    if len(args.features) > 2:
+    if '\r' in args.features:
         args.features.remove('\r')
     features = args.features
 
