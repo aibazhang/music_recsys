@@ -80,7 +80,7 @@ class PopSampling(RandomSampling):
 
 
 class TopDiscountPopSampling(PopSampling):
-    def __init__(self, k, score_lim=5, topoff=1):
+    def __init__(self, k, topoff):
         '''
         Select negative sample based the popularity of track
         Track that has low popularity -> 
@@ -89,9 +89,9 @@ class TopDiscountPopSampling(PopSampling):
         
         Args:
             - k (int) : negative sample ratio
-            - score_lim (int) : number of segment
+            - topoff (int) : cut rate
         '''
-        PopSampling.__init__(self, k=k, score_lim=score_lim)
+        PopSampling.__init__(self, k=k)
         self.topoff = topoff
     
     def make_score_list(self, playing_count_daily):
@@ -104,9 +104,11 @@ class TopDiscountPopSampling(PopSampling):
 
         self.score_list = list()
         for pct in tqdm(playing_count_daily):
-            score = qcut((1 / pct).rank(method='first'), self.score_lim, 
-                          labels=range(self.score_lim, 0, -1))
-            score[score > self.topoff] = 2
+            score = (1 / pct).rank(method='dense')
+            highpop_index = score.shape[0] - int(score.shape[0] * (self.topoff))
+            score[:] = 1
+            score[:highpop_index] = 2
+            import pdb; pdb.set_trace()
             self.score_list.append(score / score.sum()) 
 
 
