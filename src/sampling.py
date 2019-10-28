@@ -104,12 +104,10 @@ class TopDiscountPopSampling(PopSampling):
 
         self.score_list = list()
         for pct in tqdm(playing_count_daily):
-            score = (1 / pct).rank(method='dense')
-            highpop_index = score.shape[0] - int(score.shape[0] * (self.topoff))
-            score[:] = 1
-            score[:highpop_index] = 2
-            import pdb; pdb.set_trace()
-            self.score_list.append(score / score.sum()) 
+            highpop_index = pct.shape[0] - int(pct.shape[0] * (self.topoff))
+            pct[:] = 1
+            pct[:highpop_index] = 2
+            self.score_list.append(pct / pct.sum()) 
 
 
 class PriorityPopSampling(PopSampling):
