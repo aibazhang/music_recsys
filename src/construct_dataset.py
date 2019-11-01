@@ -64,6 +64,9 @@ class ConstructData:
         else:
             essential_features = ['user_id', 'track_id', 'id', 'dayofyear']
 
+        if approach_name == 'top_dis_cont':
+            essential_features.append(sampling_approach['msc_cont'])
+
         self.features = list(set(features).union(set(essential_features)))
           
         self.data_df = read_data(dataset=self.dataset, usecols=self.features, test=test)
@@ -82,6 +85,10 @@ class ConstructData:
         if approach_name == 'pri_pop_lang':
             self.sampling_model = sampling.LangPriorityPopSampling(k=negative_ratio,
                                                                    alpha=sampling_approach['alpha'])
+        if approach_name == 'top_dis_cont':
+            self.sampling_model = sampling.TopDiscountContentSampling(k=negative_ratio,
+                                                                      topoff=sampling_approach['topoff'],
+                                                                      content_feature=sampling_approach['msc_cont'])
         
         # non_categorical_feature
         self.cont_fea = list(set(self.features) & set(music_content_features))
@@ -110,7 +117,12 @@ class ConstructData:
         day_of_year_items = self.data_df.dayofyear
 
         if self.sampling_approach['name'] != 'pri_pop_lang':
-            playing_count_daily = calc_popularity(self.data_df, time_window)
+            if self.sampling_approach['name'] != 'top_dis_cont':
+                playing_count_daily = calc_popularity(self.data_df, time_window)
+            else:
+                playing_count_daily = calc_popularity(self.data_df, 
+                                                      time_window, 
+                                                      content_feature=self.sampling_approach['msc_cont'])
         else:
             if self.dataset == 'LFM-1b':
                 user_langs = self.data_df.country
@@ -139,7 +151,7 @@ class ConstructData:
                 neg_track.extend(self.sampling_model.generate_record(item_id=t, sample_space=playing_count_daily[d-1]))
                     
     
-        if self.sampling_approach['name'] in ["pop", "top_dis_pop", "pri_pop"]:
+        if self.sampling_approach['name'] in ["pop", "top_dis_pop", "pri_pop", "top_dis_cont"]:
             self.sampling_model.make_score_list(playing_count_daily)
             for d, t in zip(tqdm(day_of_year_items), reviewed_items):
                 if d == 0:
@@ -162,7 +174,7 @@ class ConstructData:
         self.data_df.set_index('id', inplace=True)
 
 
-def calc_popularity(data_df, time_window):
+def calc_popularity(data_df, time_window, content_feature=None):
     '''
     Function of calculating popularity of each day
 
@@ -183,7 +195,14 @@ def calc_popularity(data_df, time_window):
                 one_day_data_df = data_df[(data_df.dayofyear <= (i+1)) & (data_df.dayofyear > i+1-time_window)]
         else:
             one_day_data_df = data_df[data_df.dayofyear <= (i+1)]
-        popularity_daily.append(one_day_data_df.track_id.value_counts())
+
+        if content_feature == None:
+            popularity_daily.append(one_day_data_df.track_id.value_counts())
+        else:
+            track_df = one_day_data_df.drop_duplicates(subset=['track_id'])
+            track_series = pd.Series(index=track_df.track_id, 
+                                     data=track_df[content_feature].tolist())
+            popularity_daily.append(track_series)
     return popularity_daily
 
 
