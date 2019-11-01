@@ -170,3 +170,53 @@ class LangPriorityPopSampling(PriorityPopSampling):
                 rec_score_pow_alpha = np.power(1 / score, self.alpha)
                 self.score_dict[lang].append(rec_score_pow_alpha / rec_score_pow_alpha.sum())
 
+
+class TopDiscountContentSampling(RandomSampling):
+    def __init__(self, k, topoff, content_feature):
+        '''
+        Select negative sample based the content feature of track
+        Track that has low popularity -> 
+        (2,2,2,2,1)
+        Only cur off the selected probability of the tracks that have high score
+        
+        Args:
+            - k (int) : negative sample ratio
+            - topoff (int) : cut rate
+            - content_feature (str) : 
+        '''
+        RandomSampling.__init__(self, k=k)
+        self.topoff = topoff
+    
+    def make_score_list(self, playing_count_daily):
+        '''
+        Function of calculating score list for sampling
+
+        Args:
+            - playing_count_daily (list) : stastic of play count in each day
+        '''
+
+        self.score_list = playing_count_daily
+    
+    def generate_record(self, item_id=None, score=None):
+        '''
+        Function of generating negative samples one by one 
+
+        Args:
+            - item_id (int) : item id of a positive sample
+            - sample_space (int) : sample sapce of negative samples
+            - score (pd.Series) : probability distribution of all tracks
+        Return:
+            - record (int) : track id of selected negative sample(s)
+        '''
+        score -= score[item_id]
+        score = score.apply(abs).sort_values(ascending=False)
+
+        longdist_index = score.shape[0] - int(score.shape[0] * (self.topoff))
+        score[:] = 1
+        score[:longdist_index] = 2
+        score = score / score.sum()
+
+        record = np.random.choice(score.index, self.k, p=score)
+        while item_id in record:
+            record = np.random.choice(score.index, self.k, p=score)
+        return record

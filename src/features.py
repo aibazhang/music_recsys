@@ -4,7 +4,7 @@ context_features = ['tweet_lang', 'lang', 'time_zone', 'dayofweek', 'dayofyear',
 
 
 music_content_features = ['instrumentalness', 'liveness', 'speechiness', 'danceability',
-                          'valence', 'loudness', 'tempo', 'acousticness', 'mode', 'key', 'energy', 'genre', 'played_counts']
+                          'valence', 'loudness', 'tempo', 'acousticness', 'mode', 'key', 'energy']
 
 UGP_features = [
     'UGP_electronic', 'UGP_rock', 'UGP_new age', 'UGP_classical', 'UGP_reggae', 'UGP_blues', 'UGP_country', 'UGP_world', 
