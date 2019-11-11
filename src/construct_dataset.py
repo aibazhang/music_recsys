@@ -11,16 +11,19 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from sklearn.preprocessing import LabelEncoder
+from sklearn.cluster import KMeans
 
 import sampling
 from features import non_categorical_features, music_content_features
 
-def read_data(dataset='nowplaying-rs', test=100, usecols=None):
+def read_data(dataset='nowplaying-rs', test=100, 
+              usecols=None, n_clusters=None):
     '''
     Args
         - dataset (str) : name of dataset
         - test (int) : test or not 
         - usecols (str) : using features
+        - n_clusters (int) : use ucp_cluster / number of clusters
     Return
         data_df (pandas.DataFrame) using dataset
     '''
@@ -32,17 +35,36 @@ def read_data(dataset='nowplaying-rs', test=100, usecols=None):
     elif dataset == 'LFM-1b': 
         data_dir = "LFM-1b/LFM-1b/LFM-1b_LEs_2013_UGP_MS.csv"    
     
-    if not test:
-        data_df = pd.read_csv('./../../' + data_dir, usecols=usecols)
+    if 'ucp_cluster' not in usecols:
+        if not test:
+            data_df = pd.read_csv('./../../' + data_dir, usecols=usecols)
+        else:
+            data_df = pd.read_csv('./../../' + data_dir, nrows=test, usecols=usecols)
+    
     else:
-        data_df = pd.read_csv('./../../' + data_dir, nrows=test, usecols=usecols)
+        usecols.remove('ucp_cluster')
+        usecols += music_content_features 
+        if not test:
+            data_df = pd.read_csv('./../../' + data_dir, usecols=usecols)
+        else:
+            data_df = pd.read_csv('./../../' + data_dir, nrows=test, usecols=usecols)
+        data_df = calc_ucp_cluster(data_df, n_clusters)
     print(data_df.head())
     return data_df
+
+def calc_ucp_cluster(data_df, n_clusters):
+    print("------user clustering------")
+    user_mcp_df = data_df.groupby('user_id')[music_content_features].mean()
+    kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(user_mcp_df)
+    user_mcp_df['ucp_cluster'] = kmeans.labels_
+    data_df['ucp_cluster'] = user_mcp_df.loc[data_df.user_id].ucp_cluster.tolist()
+    
+    return data_df.drop(music_content_features, axis=1)
 
 
 class ConstructData:
     def __init__(self, dataset='nowplaying-rs', features=None, test=100,
-                 sampling_approach='random', negative_ratio=1):
+                 sampling_approach='random', negative_ratio=1, n_clusters=None):
         '''
         Args:
             - dataset (str) : name of dataset
@@ -68,8 +90,14 @@ class ConstructData:
             essential_features.append(sampling_approach['msc_cont'])
 
         self.features = list(set(features).union(set(essential_features)))
-          
-        self.data_df = read_data(dataset=self.dataset, usecols=self.features, test=test)
+        if 'ucp_cluster' not in self.features:  
+            self.data_df = read_data(dataset=self.dataset, 
+                                     usecols=self.features,
+                                     test=test)
+        else:
+            self.data_df = read_data(dataset=self.dataset, 
+                                     usecols=self.features, 
+                                     test=test, n_clusters=n_clusters)
         self._label_encoder()
         
         if approach_name == 'random':
