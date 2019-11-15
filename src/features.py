@@ -3,8 +3,11 @@ context_features_time = ['tweet_lang', 'time_zone', 'dayofweek', 'dayofyear', 'h
 context_features = ['tweet_lang', 'lang', 'time_zone', 'dayofweek', 'dayofyear', 'hour', 'is_week_day', 'period_of_day']
 
 
+# music_content_features = ['instrumentalness', 'liveness', 'speechiness', 'danceability',
+#                           'valence', 'loudness', 'tempo', 'acousticness', 'mode', 'key', 'energy']
+
 music_content_features = ['instrumentalness', 'liveness', 'speechiness', 'danceability',
-                          'valence', 'loudness', 'tempo', 'acousticness', 'mode', 'key', 'energy']
+                          'valence',  'tempo', 'acousticness', 'energy']
 
 UGP_features = [
     'UGP_electronic', 'UGP_rock', 'UGP_new age', 'UGP_classical', 'UGP_reggae', 'UGP_blues', 'UGP_country', 'UGP_world', 

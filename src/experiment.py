@@ -165,6 +165,7 @@ if __name__ == "__main__":
     parser.add_argument("-sampling_approach", help="name of sampling approach", 
                         type=json.loads, default={"name":"random"})
     parser.add_argument("-features", help="list of using feature(s)", type=str, nargs='+', default=['user_id', 'track_id'])
+    parser.add_argument("-n_clusters", help="number of clusters", type=int, default=5)
 
     # arguments about sampling
     parser.add_argument("-negative_ratio", help="ratio of negative samples", 
@@ -212,7 +213,8 @@ if __name__ == "__main__":
 
     print('------loading data------')
     cd = ConstructData(dataset=args.dataset, features=features, test=args.test_flag,
-                       sampling_approach=args.sampling_approach, negative_ratio=args.negative_ratio)
+                       sampling_approach=args.sampling_approach, negative_ratio=args.negative_ratio,
+                       n_clusters=args.n_clusters)
     print('------negative sampling------')
     cd.make_negative(time_window=args.time_windows)
     
@@ -227,10 +229,16 @@ if __name__ == "__main__":
         result = DataFrame(result)
         print(result)
         nowtime = datetime.now().strftime("%Y%m%d%H%M%S")
-        output_filename = 'ds_{}_m_{}_sa_{}_f_{}_k_{}_t_{}.csv'.format(args.dataset, args.algo, 
-                                                                    str(args.sampling_approach).replace(':', '_'),
-                                                                    args.features, args.negative_ratio, nowtime)
-        
+        if "ucp_cluster" not in features:
+            output_filename = 'ds_{}_m_{}_sa_{}_f_{}_k_{}_t_{}.csv'.format(args.dataset, args.algo, 
+                                                                        str(args.sampling_approach).replace(':', '_'),
+                                                                        args.features, args.negative_ratio, nowtime)
+        else:
+            output_filename = 'ds_{}_m_{}_sa_{}_f_{}_ucp_{}_k_{}_t_{}.csv'.format(args.dataset, args.algo, 
+                                                                            str(args.sampling_approach).replace(':', '_'),
+                                                                            args.features, args.n_clusters,
+                                                                            args.negative_ratio, nowtime)
+                             
     
     else:
         dataset_df = read_data(dataset=args.dataset, test=args.test_flag)
@@ -244,6 +252,7 @@ if __name__ == "__main__":
         output_filename = 'analysis_ds_{}_m_{}_sa_{}_f_{}_k_{}_t_{}.csv'.format(args.dataset, str(args.algo).replace(':', '_'), 
                                                                                 str(args.sampling_approach).replace(':', '_'),
                                                                                 args.features, args.negative_ratio, nowtime)
+    print("output filename:", output_filename)
     if args.test_flag == 0:
         result.to_csv(args.out_dir + output_filename)
     
