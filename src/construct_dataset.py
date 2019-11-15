@@ -35,7 +35,7 @@ def read_data(dataset='nowplaying-rs', test=100,
     elif dataset == 'LFM-1b': 
         data_dir = "LFM-1b/LFM-1b/LFM-1b_LEs_2013_UGP_MS.csv"    
     
-    if 'ucp_cluster' not in usecols:
+    if usecols == None or 'ucp_cluster' not in usecols:
         if not test:
             data_df = pd.read_csv('./../../' + data_dir, usecols=usecols)
         else:
