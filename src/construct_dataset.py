@@ -78,7 +78,7 @@ class ConstructData:
         self.dataset = dataset
 
         approach_name = sampling_approach['name']
-        if approach_name == 'pri_pop_lang':
+        if approach_name == 'pri_pop_lang' or approach_name == 'lang':
             if dataset == 'LFM-1b':
                 essential_features = ['user_id', 'track_id', 'id', 'dayofyear', 'country']
             else:
@@ -110,6 +110,13 @@ class ConstructData:
         if approach_name == 'pri_pop':
             self.sampling_model = sampling.PriorityPopSampling(k=negative_ratio,
                                                                alpha=sampling_approach['alpha'])
+        if approach_name == 'lang':
+            self.user_langs = self.data_df.lang
+            self.sampling_model = sampling.LangSampling(k=negative_ratio)
+            for l in self.data_df['lang'].unique():
+                unique_track = self.data_df[self.data_df['lang']==l].track_id.unique()
+                self.sampling_model.lang_unique_track_dict[l] = unique_track
+
         if approach_name == 'pri_pop_lang':
             self.sampling_model = sampling.LangPriorityPopSampling(k=negative_ratio,
                                                                    alpha=sampling_approach['alpha'])
@@ -152,13 +159,7 @@ class ConstructData:
                                                       time_window, 
                                                       content_feature=self.sampling_approach['msc_cont'])
         else:
-            if self.dataset == 'LFM-1b':
-                user_langs = self.data_df.country
-            else:
-                user_langs = self.data_df.lang
-            
             top_langs_index = self.data_df.lang.value_counts()[:13].index
-            
             playing_count_daily_dict = dict()
             
             print('lang: all')
@@ -186,6 +187,15 @@ class ConstructData:
                     continue
                 neg_track.extend(self.sampling_model.generate_record(item_id=t, score=self.sampling_model.score_list[d-1]))
 
+        if self.sampling_approach['name'] == 'lang':
+            self.sampling_model.make_score_list(playing_count_daily)
+            for d, t, l in zip(tqdm(day_of_year_items), reviewed_items, self.user_langs):
+                if d == 0:
+                    continue
+                else:
+                    neg_track.extend(self.sampling_model.generate_record(item_id=t, 
+                                                                         score=self.sampling_model.score_list[d-1],
+                                                                         language=l))
 
         if self.sampling_approach['name'] == 'pri_pop_lang':
             self.sampling_model.make_score_list(playing_count_daily_dict)
