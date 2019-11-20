@@ -78,7 +78,7 @@ class ConstructData:
         self.dataset = dataset
 
         approach_name = sampling_approach['name']
-        if approach_name == 'pri_pop_lang' or approach_name == 'lang':
+        if approach_name in ['pri_pop_lang', 'lang', 'lang_top_dis_pop']:
             if dataset == 'LFM-1b':
                 essential_features = ['user_id', 'track_id', 'id', 'dayofyear', 'country']
             else:
@@ -113,6 +113,14 @@ class ConstructData:
         if approach_name == 'lang':
             self.user_langs = self.data_df.lang
             self.sampling_model = sampling.LangSampling(k=negative_ratio)
+            for l in self.data_df['lang'].unique():
+                unique_track = self.data_df[self.data_df['lang']==l].track_id.unique()
+                self.sampling_model.lang_unique_track_dict[l] = unique_track
+        
+        if approach_name == 'lang_top_dis_pop':
+            self.user_langs = self.data_df.lang
+            self.sampling_model = sampling.LangTopDiscountPopSampling(k=negative_ratio,
+                                                                      topoff=sampling_approach['topoff'])
             for l in self.data_df['lang'].unique():
                 unique_track = self.data_df[self.data_df['lang']==l].track_id.unique()
                 self.sampling_model.lang_unique_track_dict[l] = unique_track
@@ -187,7 +195,7 @@ class ConstructData:
                     continue
                 neg_track.extend(self.sampling_model.generate_record(item_id=t, score=self.sampling_model.score_list[d-1]))
 
-        if self.sampling_approach['name'] == 'lang':
+        if self.sampling_approach['name'] in ['lang', 'lang_top_dis_pop']:
             self.sampling_model.make_score_list(playing_count_daily)
             for d, t, l in zip(tqdm(day_of_year_items), reviewed_items, self.user_langs):
                 if d == 0:

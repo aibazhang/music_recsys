@@ -192,8 +192,9 @@ if __name__ == "__main__":
     sam_apr_name = args.sampling_approach['name']
     assert sam_apr_name in ["random", 
                             "pop", "top_dis_pop", "pri_pop", 
-                            "lang", "pri_pop_lang", 
+                            "lang", "pri_pop_lang", "lang_top_dis_pop",
                             "top_dis_cont"]
+    
     if sam_apr_name == "pri_pop":
         assert {'alpha'}.issubset(set(args.sampling_approach.keys()))
     elif sam_apr_name == "pop":

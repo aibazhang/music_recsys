@@ -143,16 +143,6 @@ class PriorityPopSampling(PopSampling):
 # Language
 class LangSampling(RandomSampling):
     def __init__(self, k):
-        '''
-        Select negative sample based the popularity of track
-        Track that has low popularity -> 
-        (1,2,2,2,2)
-        Only cur off the selected probability of the tracks that have high popularity
-        
-        Args:
-            - k (int) : negative sample ratio
-            - topoff (int) : cut rate
-        '''
         RandomSampling.__init__(self, k=k)
         self.lang_unique_track_dict = dict()
     
@@ -173,6 +163,7 @@ class LangSampling(RandomSampling):
             - item_id (int) : item id of a positive sample
             - sample_space (int) : sample sapce of negative samples
             - score (pd.Series) : probability distribution of all tracks
+            - language (int) : Language of a Listening event
         Return:
             - record (int) : track id of selected negative sample(s)
         '''
@@ -188,6 +179,49 @@ class LangSampling(RandomSampling):
             record = np.random.choice(score.index, self.k, p=score)
         return record
 
+
+class LangTopDiscountPopSampling(LangSampling):
+    def __init__(self, k, topoff):
+        LangSampling.__init__(self, k=k)
+        self.topoff = topoff
+    
+    def make_score_list(self, playing_count_daily):
+        '''
+        Function of calculating score list for sampling
+
+        Args:
+            - playing_count_daily (list) : stastic of play count in each day
+        '''
+        self.score_list = list()
+        for pct in tqdm(playing_count_daily):
+            highpop_index = pct.shape[0] - int(pct.shape[0] * (self.topoff))
+            pct[:] = 1
+            pct[:highpop_index] = 2
+            self.score_list.append(pct)
+    
+    def generate_record(self, item_id=None, score=None, language=None):
+        '''
+        Function of generating negative samples one by one 
+
+        Args:
+            - item_id (int) : item id of a positive sample
+            - sample_space (int) : sample sapce of negative samples
+            - score (pd.Series) : probability distribution of all tracks
+            - language (int) : Language of a Listening event
+        Return:
+            - record (int) : track id of selected negative sample(s)
+        '''
+
+        local_track = self.lang_unique_track_dict[language]
+        track_in_list = list(set(score.index.tolist()) & set(local_track))       
+        score[track_in_list] += 1
+
+        score = score / score.sum()
+
+        record = np.random.choice(score.index, self.k, p=score)
+        while item_id in record:
+            record = np.random.choice(score.index, self.k, p=score)
+        return record
 
 class LangPriorityPopSampling(PriorityPopSampling):
     def __init__(self, k, alpha=0.5):
@@ -220,6 +254,7 @@ class LangPriorityPopSampling(PriorityPopSampling):
                 self.score_dict[lang].append(rec_score_pow_alpha / rec_score_pow_alpha.sum())
 
 
+# Using content feature of tracks
 class TopDiscountContentSampling(RandomSampling):
     def __init__(self, k, topoff, content_feature):
         '''
