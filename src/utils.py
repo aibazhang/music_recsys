@@ -8,6 +8,10 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+import pylab as plt
+import seaborn
+seaborn.set()
+
 from multiprocessing import Pool, cpu_count
 from functools import partial
 from sklearn.preprocessing import OneHotEncoder
@@ -183,3 +187,21 @@ def calc_mainstream(data_df, approach='frac', dist_thres=10):
             mainstream_list.append(mainstream_u)
     
     return pd.Series(index=all_users, data=mainstream_list)
+
+
+def plot_frequency_dist(data, x_label, y_label, 
+                        use_log=False, save=None):
+    data_frequency = data.value_counts()
+    if not use_log:
+        plt.hist(data_frequency, bins=30, 
+                 alpha=0.7, normed=True)
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
+    else:
+        plt.hist(data_frequency.apply(log), bins=30, 
+                alpha=0.7, normed=True)
+        plt.xlabel("log({})".format(x_label))
+        plt.ylabel(y_label)
+    if save != None:
+        plt.savefig('../experiemnt_result/frequency_dist_' + save)
+        plt.show()

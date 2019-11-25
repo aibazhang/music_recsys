@@ -14,6 +14,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.cluster import KMeans
 
 import sampling
+from utils import plot_frequency_dist
 from features import non_categorical_features, music_content_features
 
 def read_data(dataset='nowplaying-rs', test=100, 
@@ -78,7 +79,7 @@ class ConstructData:
         self.dataset = dataset
 
         approach_name = sampling_approach['name']
-        if approach_name in ['pri_pop_lang', 'lang', 'lang_top_dis_pop']:
+        if approach_name == 'lang_pop_ms':
             if dataset == 'LFM-1b':
                 essential_features = ['user_id', 'track_id', 'id', 'dayofyear', 'country']
             else:
@@ -86,8 +87,6 @@ class ConstructData:
         else:
             essential_features = ['user_id', 'track_id', 'id', 'dayofyear']
 
-        if approach_name == 'top_dis_cont':
-            essential_features.append(sampling_approach['msc_cont'])
 
         self.features = list(set(features).union(set(essential_features)))
         if 'ucp_cluster' not in self.features:  
@@ -110,29 +109,9 @@ class ConstructData:
         if approach_name == 'pri_pop':
             self.sampling_model = sampling.PriorityPopSampling(k=negative_ratio,
                                                                alpha=sampling_approach['alpha'])
-        if approach_name == 'lang':
-            self.user_langs = self.data_df.lang
-            self.sampling_model = sampling.LangSampling(k=negative_ratio)
-            for l in self.data_df['lang'].unique():
-                unique_track = self.data_df[self.data_df['lang']==l].track_id.unique()
-                self.sampling_model.lang_unique_track_dict[l] = unique_track
-        
-        if approach_name == 'lang_top_dis_pop':
-            self.user_langs = self.data_df.lang
-            self.sampling_model = sampling.LangTopDiscountPopSampling(k=negative_ratio,
-                                                                      topoff=sampling_approach['topoff'])
-            for l in self.data_df['lang'].unique():
-                unique_track = self.data_df[self.data_df['lang']==l].track_id.unique()
-                self.sampling_model.lang_unique_track_dict[l] = unique_track
+        if approach_name == 'lang_pop_ms':
+            pass
 
-        if approach_name == 'pri_pop_lang':
-            self.sampling_model = sampling.LangPriorityPopSampling(k=negative_ratio,
-                                                                   alpha=sampling_approach['alpha'])
-        if approach_name == 'top_dis_cont':
-            self.sampling_model = sampling.TopDiscountContentSampling(k=negative_ratio,
-                                                                      topoff=sampling_approach['topoff'],
-                                                                      content_feature=sampling_approach['msc_cont'])
-        
         # non_categorical_feature
         self.cont_fea = list(set(self.features) & set(music_content_features))
 
@@ -159,25 +138,7 @@ class ConstructData:
         reviewed_items = self.data_df.track_id
         day_of_year_items = self.data_df.dayofyear
 
-        if self.sampling_approach['name'] != 'pri_pop_lang':
-            if self.sampling_approach['name'] != 'top_dis_cont':
-                playing_count_daily = calc_popularity(self.data_df, time_window)
-            else:
-                playing_count_daily = calc_popularity(self.data_df, 
-                                                      time_window, 
-                                                      content_feature=self.sampling_approach['msc_cont'])
-        else:
-            top_langs_index = self.data_df.lang.value_counts()[:13].index
-            playing_count_daily_dict = dict()
-            
-            print('lang: all')
-            playing_count_daily_dict['all'] = calc_popularity(self.data_df, time_window)
-            for tl in top_langs_index:
-                print('lang: ', tl)
-                if self.dataset == 'LFM-1b':
-                    playing_count_daily_dict[tl] = calc_popularity(self.data_df[self.data_df.country != tl], time_window)
-                else:
-                    playing_count_daily_dict[tl] = calc_popularity(self.data_df[self.data_df.lang != tl], time_window)
+        playing_count_daily = calc_popularity(self.data_df, time_window)
 
         # Negative sampling
         neg_track = list()
@@ -186,16 +147,15 @@ class ConstructData:
                 if d == 0:
                     continue
                 neg_track.extend(self.sampling_model.generate_record(item_id=t, sample_space=playing_count_daily[d-1]))
-                    
-    
-        if self.sampling_approach['name'] in ["pop", "top_dis_pop", "pri_pop", "top_dis_cont"]:
+                
+        if self.sampling_approach['name'] in ["pop", "top_dis_pop", "pri_pop"]:
             self.sampling_model.make_score_list(playing_count_daily)
             for d, t in zip(tqdm(day_of_year_items), reviewed_items):
                 if d == 0:
                     continue
                 neg_track.extend(self.sampling_model.generate_record(item_id=t, score=self.sampling_model.score_list[d-1]))
 
-        if self.sampling_approach['name'] in ['lang', 'lang_top_dis_pop']:
+        if self.sampling_approach['name'] in ["lang_pop_ms"]:
             self.sampling_model.make_score_list(playing_count_daily)
             for d, t, l in zip(tqdm(day_of_year_items), reviewed_items, self.user_langs):
                 if d == 0:
@@ -204,17 +164,11 @@ class ConstructData:
                     neg_track.extend(self.sampling_model.generate_record(item_id=t, 
                                                                          score=self.sampling_model.score_list[d-1],
                                                                          language=l))
-
-        if self.sampling_approach['name'] == 'pri_pop_lang':
-            self.sampling_model.make_score_list(playing_count_daily_dict)
-            for d, t, l in zip(tqdm(day_of_year_items), reviewed_items, user_langs):
-                if d == 0:
-                    continue
-                if l not in top_langs_index:
-                    neg_track.extend(self.sampling_model.generate_record(item_id=t, score=self.sampling_model.score_dict['all'][d-1]))                 
-                else:
-                    neg_track.extend(self.sampling_model.generate_record(item_id=t, score=self.sampling_model.score_dict[l][d-1]))                 
-
+        
+        plot_frequency_dist(pd.Series(neg_track), 
+                            x_label='play_count', y_label='#track',
+                            save=self.sampling_approach['name'])
+        import pdb; pdb.set_trace()
         self.negative.loc[:, 'track_id'] = neg_track
         self.negative.set_index('id', inplace=True)
         self.data_df.set_index('id', inplace=True)
