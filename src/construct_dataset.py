@@ -165,10 +165,10 @@ class ConstructData:
                                                                          score=self.sampling_model.score_list[d-1],
                                                                          language=l))
         
-        plot_frequency_dist(pd.Series(neg_track), 
-                            x_label='play_count', y_label='#track',
-                            save=self.sampling_approach['name'])
-        import pdb; pdb.set_trace()
+        # plot_frequency_dist(pd.Series(neg_track), 
+        #                     x_label='play_count', y_label='#track',
+        #                     save=self.sampling_approach['name'])
+        # import pdb; pdb.set_trace()
         self.negative.loc[:, 'track_id'] = neg_track
         self.negative.set_index('id', inplace=True)
         self.data_df.set_index('id', inplace=True)
