@@ -1,6 +1,6 @@
 pandas==1.3.2
 numpy==1.22.0
 fastFM==0.2.11
-scikit_learn==1.0
+scikit_learn==1.0.1
 tqdm==4.62.3
 xlearn==0.40a1
